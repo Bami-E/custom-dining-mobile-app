@@ -11,6 +11,7 @@ interface User {
   restaurantId?: string;
   isEmailVerified?: boolean;
   hasProfile?: boolean; // Whether user has completed dietary preferences setup
+  name?: string; // Add name property to User interface
 }
 
 interface AuthContextType {

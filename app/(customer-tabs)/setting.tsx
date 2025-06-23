@@ -40,7 +40,6 @@ export default function SettingScreen() {
   const handleOrders = () => showComingSoon('Order History');
   const handleLanguageSelection = () => showComingSoon('Language Selection');
   const handleVoiceInput = () => showComingSoon('Voice Input');
-  const handleFAQ = () => showComingSoon('FAQ & Help Center');
   const handleHelp = () => showComingSoon('Customer Support');
 
   // Toggle handlers with coming soon for actual functionality
@@ -193,8 +192,8 @@ export default function SettingScreen() {
 
         {/* Support Section */}
         <Text style={styles.sectionTitle}>Support</Text>
-        <TouchableOpacity style={styles.row} onPress={handleFAQ}>
-          <Text style={styles.label}>FAQ</Text>
+        <TouchableOpacity style={styles.row} onPress={() => router.push('/faq-chatbot')}>
+          <Text style={styles.label}>FAQ & Chatbot</Text>
           <Ionicons name="help-circle-outline" size={20} color={colors.gray} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.row} onPress={handleHelp}>

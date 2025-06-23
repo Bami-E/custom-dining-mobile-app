@@ -2,6 +2,7 @@ import '../global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '../auth-context';
 import { CartProvider } from '../cart-context';
+import { NotificationProvider } from '../notification-context';
 import { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { colors } from '../theme/colors';
@@ -160,6 +161,38 @@ function RootLayoutNav() {
     }
   };
 
+  // Add logging to identify undefined components
+  console.log('🔍 Navigation stack screens:', {
+    customSplash: CustomSplashScreen,
+    auth: '(auth)',
+    customerTabs: '(customer-tabs)',
+    restaurantTabs: '(restaurant-tabs)',
+    modal: 'modal',
+    customerNotifications: 'customer-notifications',
+    restaurantNotifications: 'restaurant-notifications',
+    checkout: 'checkout',
+    orderConfirmation: 'order-confirmation',
+    orderStatus: 'order-status',
+    editProfile: 'edit-profile',
+    uploadCertifications: 'upload-certifications',
+    restaurants: 'restaurants',
+    restaurantProfile: 'restaurant-profile',
+    customerTerms: 'customer-terms',
+    restaurantTerms: 'restaurant-terms',
+    mealId: 'meal/[id]',
+    mealRecommended: 'meal/recommended',
+    addMeal: 'add-meal',
+    mealPlanBuilder: 'meal-plan-builder',
+    changePassword: 'change-password',
+    locationSearch: 'location-search',
+    breakfast: 'breakfast',
+    lunch: 'lunch',
+    dinner: 'dinner',
+    snacks: 'snacks',
+    menu: 'menu',
+    reviews: 'reviews',
+  });
+
   // Always render the Stack, but show splash screen as overlay when needed
   return (
     <>
@@ -214,9 +247,11 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <CartProvider>
-        <RootLayoutNav />
-      </CartProvider>
+      <NotificationProvider>
+        <CartProvider>
+          <RootLayoutNav />
+        </CartProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

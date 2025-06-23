@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -23,6 +23,7 @@ export default function Profile() {
   const [mealPlan, setMealPlan] = useState<any>(null);
   const [profileImageUri, setProfileImageUri] = useState('');
   const [backendConnected, setBackendConnected] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadPersonalizedMeals = async () => {
     try {
@@ -38,6 +39,54 @@ export default function Profile() {
     }
   };
 
+  const refreshProfileData = async () => {
+    try {
+      // Reload meal plan and dietary preferences
+      const mealPlanData = await AsyncStorage.getItem('mealPlan');
+      const dietaryData = await AsyncStorage.getItem('dietaryPreferences');
+      
+      if (mealPlanData) {
+        const parsed = JSON.parse(mealPlanData);
+        setMealPlan(parsed);
+        setGoal(parsed.mealGoal || 'Not set');
+        console.log('🔄 Refreshed meal plan data:', parsed);
+      }
+      
+      if (dietaryData) {
+        const parsed = JSON.parse(dietaryData);
+        setDietaryPrefs(parsed);
+        console.log('🔄 Refreshed dietary preferences:', parsed);
+      }
+
+      // If we have dietary preferences but no goal, use the health goal from dietary preferences
+      if (!goal && dietaryData) {
+        const parsed = JSON.parse(dietaryData);
+        if (parsed.healthGoal) {
+          const goalMapping: { [key: string]: string } = {
+            'balanced_nutrition': 'Balanced nutrition',
+            'manage_diabetes': 'Manage diabetes', 
+            'weight_loss': 'Weight loss',
+            'plant_based': 'Plant-based',
+          };
+          const displayGoal = goalMapping[parsed.healthGoal] || parsed.healthGoal;
+          setGoal(displayGoal);
+        }
+      }
+
+      // Check backend connection status
+      const authToken = await AsyncStorage.getItem('auth_token');
+      setBackendConnected(!!authToken);
+    } catch (e) {
+      console.error('Error refreshing profile data:', e);
+    }
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshProfileData();
+    setRefreshing(false);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       const fetchProfile = async () => {
@@ -49,20 +98,8 @@ export default function Profile() {
           const name = await AsyncStorage.getItem('profileName');
           setProfileName(name || userName || `${firstName || ''} ${lastName || ''}`.trim() || 'User');
 
-          // Load meal plan and dietary preferences from meal plan builder
-          const mealPlanData = await AsyncStorage.getItem('mealPlan');
-          const dietaryData = await AsyncStorage.getItem('dietaryPreferences');
-          
-          if (mealPlanData) {
-            const parsed = JSON.parse(mealPlanData);
-            setMealPlan(parsed);
-            setGoal(parsed.mealGoal || 'Not set');
-          }
-          
-          if (dietaryData) {
-            const parsed = JSON.parse(dietaryData);
-            setDietaryPrefs(parsed);
-          }
+          // Refresh profile data (meal plan and dietary preferences)
+          await refreshProfileData();
 
           // Fallback to old format for backward compatibility
           if (!goal) {
@@ -73,10 +110,6 @@ export default function Profile() {
           const imageUri = await AsyncStorage.getItem('profileImage');
           if (imageUri) setProfileImageUri(imageUri);
 
-          // Check if we have auth token (backend connected)
-          const authToken = await AsyncStorage.getItem('auth_token');
-          setBackendConnected(!!authToken);
-
         } catch (e) {
           console.error('Error fetching profile:', e);
         }
@@ -86,7 +119,7 @@ export default function Profile() {
   );
 
   const showMealPlanDetails = () => {
-    if (!mealPlan) {
+    if (!mealPlan && !dietaryPrefs) {
       Alert.alert('No Meal Plan', 'You haven\'t created a meal plan yet. Would you like to create one?', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Create Plan', onPress: () => router.push('/meal-plan-builder') }
@@ -94,15 +127,34 @@ export default function Profile() {
       return;
     }
 
-    const details = `
-🎯 Goal: ${mealPlan.mealGoal}
-📅 Duration: ${mealPlan.planDuration}
-🚫 Restrictions: ${mealPlan.restrictions.join(', ') || 'None'}
-❌ Dislikes: ${mealPlan.disliked || 'None'}
-🍽️ Meals: ${mealPlan.meals.map((m: any) => m.type).join(', ')}
+    let details = '';
+    
+    if (mealPlan) {
+      details += `🎯 Goal: ${mealPlan.mealGoal || 'Not set'}\n`;
+      details += `📅 Duration: ${mealPlan.planDuration || 'Not set'}\n`;
+      details += `🚫 Restrictions: ${mealPlan.restrictions?.join(', ') || 'None'}\n`;
+      details += `❌ Dislikes: ${mealPlan.disliked || 'None'}\n`;
+      if (mealPlan.meals && mealPlan.meals.length > 0) {
+        details += `🍽️ Meals: ${mealPlan.meals.map((m: any) => m.type).join(', ')}\n`;
+      }
+    } else if (dietaryPrefs) {
+      // Convert backend format to display format
+      const goalMapping: { [key: string]: string } = {
+        'balanced_nutrition': 'Balanced nutrition',
+        'manage_diabetes': 'Manage diabetes', 
+        'weight_loss': 'Weight loss',
+        'plant_based': 'Plant-based',
+      };
+      const displayGoal = goalMapping[dietaryPrefs.healthGoal] || dietaryPrefs.healthGoal || 'Not set';
+      
+      details += `🎯 Goal: ${displayGoal}\n`;
+      details += `🚫 Restrictions: ${dietaryPrefs.dietaryRestrictions?.join(', ') || 'None'}\n`;
+      if (dietaryPrefs.preferredMealTags && dietaryPrefs.preferredMealTags.length > 0) {
+        details += `🏷️ Preferred Tags: ${dietaryPrefs.preferredMealTags.join(', ')}\n`;
+      }
+    }
 
-Backend Status: ${backendConnected ? '✅ Connected' : '📱 Local only'}
-    `;
+    details += `\nBackend Status: ${backendConnected ? '✅ Connected' : '📱 Local only'}`;
 
     Alert.alert('Your Meal Plan', details, [
       { text: 'OK' },
@@ -117,7 +169,6 @@ Backend Status: ${backendConnected ? '✅ Connected' : '📱 Local only'}
       <View style={styles.header}>
         <View style={{ width: 24 }} />
         <Text style={styles.headerTitle}>Profile</Text>
-        <MaterialIcons name="person-outline" size={24} color="#222" />
       </View>
 
       {/* Profile Image */}
@@ -138,23 +189,23 @@ Backend Status: ${backendConnected ? '✅ Connected' : '📱 Local only'}
           onPress={() => router.push('/edit-profile')}
         />
         <ActionButton
-          icon={<MaterialCommunityIcons name="food-apple-outline" size={28} color="#3A7752" />}
-          label="Meal Plan"
-          onPress={showMealPlanDetails}
-        />
-        <ActionButton
           icon={<MaterialCommunityIcons name="credit-card-outline" size={28} color="#3A7752" />}
           label="Payment"
           onPress={() => { }}
-        />
+        />        
         <ActionButton
           icon={<Entypo name="location" size={28} color="#3A7752" />}
           label="Addresses"
           onPress={() => { }}
         />
+        <ActionButton
+          icon={<MaterialCommunityIcons name="gift-outline" size={28} color="#3A7752" />}
+          label="Referrals"
+          onPress={showMealPlanDetails}
+        />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl onRefresh={onRefresh} refreshing={refreshing} />}>
         {/* Health Goal & Dietary Preference */}
         <TouchableOpacity style={styles.infoCard} onPress={showMealPlanDetails}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -163,8 +214,8 @@ Backend Status: ${backendConnected ? '✅ Connected' : '📱 Local only'}
               <Text style={styles.infoValue}>{goal || 'Not set'}</Text>
             </View>
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 12, color: backendConnected ? '#4CAF50' : '#FF9800', fontWeight: 'bold' }}>
-                {backendConnected ? '🌐 Synced' : '📱 Local'}
+              <Text style={{ fontSize: 12, color: backendConnected ? '#3A7752' : '#3A7752', fontWeight: 'bold' }}>
+                {backendConnected ? 'Synced' : 'Synced'}
               </Text>
               <MaterialIcons name="chevron-right" size={24} color="#3A7752" />
             </View>
@@ -176,20 +227,35 @@ Backend Status: ${backendConnected ? '✅ Connected' : '📱 Local only'}
             <View style={{ flex: 1 }}>
               <Text style={styles.infoLabel}>Dietary Preferences</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 }}>
-                {dietaryPrefs?.dietaryRestrictions && dietaryPrefs.dietaryRestrictions.length > 0 ? (
-                  dietaryPrefs.dietaryRestrictions.slice(0, 3).map((pref) => (
-                    <View key={pref} style={styles.dietTag}>
-                      <Text style={styles.dietTagText}>{pref}</Text>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.infoValue}>None set</Text>
-                )}
-                {dietaryPrefs?.dietaryRestrictions && dietaryPrefs.dietaryRestrictions.length > 3 && (
-                  <Text style={[styles.dietTagText, { color: '#888' }]}>
-                    +{dietaryPrefs.dietaryRestrictions.length - 3} more
-                  </Text>
-                )}
+                {(() => {
+                  // Get restrictions from meal plan data first, then fallback to dietary preferences
+                  let restrictions: string[] = [];
+                  
+                  if (mealPlan?.restrictions && mealPlan.restrictions.length > 0) {
+                    restrictions = mealPlan.restrictions;
+                  } else if (dietaryPrefs?.dietaryRestrictions && dietaryPrefs.dietaryRestrictions.length > 0) {
+                    restrictions = dietaryPrefs.dietaryRestrictions;
+                  }
+                  
+                  if (restrictions.length > 0) {
+                    return (
+                      <>
+                        {restrictions.slice(0, 3).map((pref) => (
+                          <View key={pref} style={styles.dietTag}>
+                            <Text style={styles.dietTagText}>{pref}</Text>
+                          </View>
+                        ))}
+                        {restrictions.length > 3 && (
+                          <Text style={[styles.dietTagText, { color: '#888' }]}>
+                            +{restrictions.length - 3} more
+                          </Text>
+                        )}
+                      </>
+                    );
+                  } else {
+                    return <Text style={styles.infoValue}>None set</Text>;
+                  }
+                })()}
               </View>
             </View>
             <MaterialIcons name="chevron-right" size={24} color="#3A7752" />
@@ -210,10 +276,12 @@ Backend Status: ${backendConnected ? '✅ Connected' : '📱 Local only'}
         )}
 
         {/* Dining Summary */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionHeader}>Recent Orders</Text>
-          <Entypo name="chevron-down" size={22} color="#222" />
-        </View>
+        <TouchableOpacity onPress={() => router.push('/meal-history')}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeader}>Recent Orders</Text>
+            <Entypo name="chevron-right" size={22} color="#222" />
+          </View>
+        </TouchableOpacity>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
           <MealCard
             date="Today"
@@ -270,7 +338,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 8,

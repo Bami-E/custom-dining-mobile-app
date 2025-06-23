@@ -12,6 +12,7 @@ import { useAuth } from '../../auth-context';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getUserMeals, DietaryPreferences, Meal as BackendMeal, Restaurant as BackendRestaurant } from '../../services/api';
 import { getHybridMeals, getHybridRestaurants } from '../../services/hybridMealService';
+import MealFilterService from '../../services/mealFilterService';
 import AuthService from '../../services/authService';
 
 // Types for frontend components
@@ -122,35 +123,19 @@ export default function HomeScreen() {
     }
   };
 
-  // Filter meals based on dietary preferences
-  const filterMealsByPreferences = (meals: BackendMeal[]): BackendMeal[] => {
-    if (!dietaryPrefs || (!dietaryPrefs.dietaryRestrictions.length && !dietaryPrefs.preferredMealTags.length)) {
+  // Filter meals using centralized service
+  const filterMealsByPreferences = async (meals: BackendMeal[]): Promise<BackendMeal[]> => {
+    const preferences = await MealFilterService.loadDietaryPreferences();
+    if (!preferences) {
+      setIsPersonalized(false);
       return meals;
     }
 
-    const filtered = meals.filter(meal => {
-      // Check if meal matches dietary restrictions
-      const matchesRestrictions = dietaryPrefs.dietaryRestrictions.length === 0 || 
-        dietaryPrefs.dietaryRestrictions.some(restriction => 
-          meal.dietaryTags.some(tag => 
-            tag.toLowerCase().includes(restriction.toLowerCase()) ||
-            restriction.toLowerCase().includes(tag.toLowerCase())
-          )
-        );
+    const filtered = meals.filter(meal => 
+      MealFilterService.matchesDietaryPreferences(meal, preferences)
+    );
 
-      // Check if meal matches preferred tags
-      const matchesPreferredTags = dietaryPrefs.preferredMealTags.length === 0 ||
-        dietaryPrefs.preferredMealTags.some(preferred => 
-          meal.dietaryTags.some(tag => 
-            tag.toLowerCase().includes(preferred.toLowerCase()) ||
-            preferred.toLowerCase().includes(tag.toLowerCase())
-          )
-        );
-
-      return matchesRestrictions || matchesPreferredTags;
-    });
-
-    console.log(`🎯 Filtered ${meals.length} meals to ${filtered.length} based on preferences`);
+    console.log(`🍽️ Filtered ${meals.length} meals to ${filtered.length} based on preferences`);
     setIsPersonalized(filtered.length !== meals.length && filtered.length > 0);
     
     return filtered.length > 0 ? filtered : meals;
@@ -171,49 +156,49 @@ export default function HomeScreen() {
         }
       }
 
-      // Fall back to hybrid meals (backend + comprehensive local)
-      console.log('🎯 Loading hybrid meals (backend + local)...');
+      // Fall back to comprehensive meal database
+      console.log('🍽️ Loading meals from database...');
       const response = await getHybridMeals();
       
-      console.log('🔍 DEBUG: Full hybrid meals response:', JSON.stringify(response, null, 2));
+      console.log('🔍 DEBUG: Full meals response:', JSON.stringify(response, null, 2));
       
       if (response.success && response.data && response.data.length > 0) {
-        console.log('✅ Loaded hybrid meals successfully!');
-        console.log('🔍 DEBUG: First hybrid meal:', JSON.stringify(response.data[0], null, 2));
+        console.log('✅ Loaded meals successfully!');
+        console.log('🔍 DEBUG: First meal:', JSON.stringify(response.data[0], null, 2));
         
         // Filter meals based on dietary preferences
-        const filteredMeals = filterMealsByPreferences(response.data);
+        const filteredMeals = await filterMealsByPreferences(response.data);
         const convertedMeals = filteredMeals.slice(0, 6).map((meal, index) => convertBackendMealToMeal(meal, index));
         
-        console.log('🔍 DEBUG: First converted hybrid meal:', JSON.stringify(convertedMeals[0], null, 2));
+        console.log('🔍 DEBUG: First converted meal:', JSON.stringify(convertedMeals[0], null, 2));
         
         return convertedMeals;
       }
 
-      // If no hybrid data, return empty array
-      console.log('⚠️ No meals available from hybrid service');
+      // If no data available, return empty array
+      console.log('⚠️ No meals available from database');
       return [];
     } catch (error) {
-      console.error('❌ Error loading meals from hybrid service:', error);
+      console.error('❌ Error loading meals from database:', error);
       return [];
     }
   };
 
-  // Load restaurants from hybrid service
+  // Load restaurants from database
   const loadTopRestaurants = async (): Promise<Restaurant[]> => {
     try {
-      console.log('🏪 Loading restaurants from hybrid service...');
+      console.log('🏪 Loading restaurants from database...');
       const response = await getHybridRestaurants();
       
       if (response.success && response.data && response.data.length > 0) {
-        console.log('✅ Loaded restaurants from hybrid service!');
+        console.log('✅ Loaded restaurants successfully!');
         return response.data.slice(0, 5).map((restaurant, index) => convertHybridRestaurantToRestaurant(restaurant, index));
       }
 
-      console.log('⚠️ No restaurants available from hybrid service');
+      console.log('⚠️ No restaurants available from database');
       return [];
     } catch (error) {
-      console.error('❌ Error loading restaurants from hybrid service:', error);
+      console.error('❌ Error loading restaurants from database:', error);
       return [];
     }
   };
@@ -332,7 +317,7 @@ export default function HomeScreen() {
       <View style={styles.sectionHeader}>
         <View style={{ flex: 1 }}>
         <Text style={styles.sectionTitle}>
-          {dietaryPrefs ? 'Recommended For You' : '🍽️ Popular Meals'}
+          {dietaryPrefs ? 'Recommended For You' : 'Popular Meals'}
         </Text>
           {isPersonalized && dietaryPrefs && (
             <Text style={{ fontSize: 12, color: '#10b981', fontWeight: '500', marginTop: 2 }}>

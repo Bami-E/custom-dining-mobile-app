@@ -255,7 +255,7 @@ export default function SignupScreen() {
               title={isLoading ? "Creating Account..." : "Create Account"}
               variant="primary"
               onPress={handleSignup}
-              disabled={isLoading}
+              disabled={isLoading || !firstName || !lastName || !phoneNumber || !email || !password || !confirmPassword || !acceptTerms}
             />
             {isLoading && (
               <View className="flex-row justify-center mt-2">

@@ -15,8 +15,8 @@ export default function SignupScreen() {
   const router = useRouter();
 
   // State management for form inputs
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [businessAddress, setBusinessAddress] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -55,34 +55,13 @@ export default function SignupScreen() {
     setIsLoading(true);
 
     try {
-      // Validation
-      if (!firstName || !lastName || !phoneNumber || !email || !password || !confirmPassword) {
-        setError('Please fill in all fields.');
-        return;
-      }
-
-      if (!isPasswordValid) {
-        setError('Password must be at least 8 characters long.');
-        return;
-      }
-
-      if (!doPasswordsMatch) {
-        setError('Passwords do not match.');
-        return;
-      }
-
-      if (!acceptTerms) {
-        setError('Please accept the Terms of Use and Privacy Policy.');
-        return;
-      }
-
       // Call API service with restaurant registration data
       const response = await AuthService.registerRestaurant({
-        username: firstName, // Business name as username
+        username: businessName, // Business name as username
         email,
         password,
         phoneNumber: countryCode + phoneNumber,
-        address: lastName, // Business address
+        address: businessAddress, // Business address
         city,
       });
 
@@ -100,7 +79,22 @@ export default function SignupScreen() {
           router.push('/(auth)/restaurant-login');
         }, 6500); // Slightly longer than toast duration
       } else {
-        setError(response.message || 'Signup failed. Please try again.');
+        // Prioritize backend error message, fallback to frontend validation
+        if (response.message) {
+          setError(response.message);
+        } else if (!businessName || !businessAddress || !phoneNumber || !email || !password || !confirmPassword) {
+          setError('Please fill in all fields.');
+        } else if (!isPasswordValid) {
+          setError('Password must be at least 8 characters long.');
+        } else if (!doPasswordsMatch) {
+          setError('Passwords do not match.');
+        } else if (!acceptTerms) {
+          setError('Please accept the Terms of Use and Privacy Policy.');
+        } else if (!certUploaded) {
+          setError('Please upload your certifications.');
+        } else {
+          setError('Signup failed. Please try again.');
+        }
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -155,10 +149,10 @@ export default function SignupScreen() {
           {/* Form Inputs */}
           <TextInput
             placeholder="Business Name"
-            value={firstName}
-            onChangeText={setFirstName}
+            value={businessName}
+            onChangeText={setBusinessName}
             autoCapitalize="words"
-            variant={error && !firstName ? 'error' : 'default'}
+            variant={error && !businessName ? 'error' : 'default'}
             editable={!isLoading}
           />
 
@@ -201,10 +195,10 @@ export default function SignupScreen() {
 
           <TextInput
             placeholder="Business Address"
-            value={lastName}
-            onChangeText={setLastName}
+            value={businessAddress}
+            onChangeText={setBusinessAddress}
             autoCapitalize="words"
-            variant={error && !lastName ? 'error' : 'default'}
+            variant={error && !businessAddress ? 'error' : 'default'}
             editable={!isLoading}
           />
 
@@ -238,15 +232,6 @@ export default function SignupScreen() {
               {certFiles.length === 2 ? '2 files attached' : certUploaded ? 'Certification uploaded' : 'Upload Certifications'}
             </Text>
           </TouchableOpacity>
-          {certFiles.length === 2 && (
-            <View style={{ marginBottom: 12, marginLeft: 8 }}>
-              {certFiles.map((name, idx) => (
-                <Text key={idx} style={{ color: colors.primary, fontSize: 13 }}>
-                  {name}
-                </Text>
-              ))}
-            </View>
-          )}
 
           {/* Password with validation hint */}
           <View className="mb-4">
@@ -308,7 +293,7 @@ export default function SignupScreen() {
               title={isLoading ? "Creating Account..." : "Create Account"}
               variant="primary"
               onPress={handleSignup}
-              disabled={isLoading || !certUploaded || !firstName || !lastName || !phoneNumber || !email || !password || !confirmPassword || !acceptTerms}
+              disabled={isLoading || !certUploaded || !businessName || !businessAddress || !phoneNumber || !email || !password || !confirmPassword || !acceptTerms}
             />
             {isLoading && (
               <View className="flex-row justify-center mt-2">

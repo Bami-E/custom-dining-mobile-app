@@ -156,7 +156,7 @@ export interface Restaurant {
 // 📝 STEP 2: Create Axios instance
 // Think of this as creating your "HTTP client" with default settings
 const apiClient = axios.create({
-  baseURL: getApiUrl(),           // Your backend URL: http://localhost:3006/api
+  baseURL: getApiUrl(),           
   timeout: API_CONFIG.timeout,    // 10 seconds timeout
   headers: API_CONFIG.defaultHeaders, // JSON headers
 });

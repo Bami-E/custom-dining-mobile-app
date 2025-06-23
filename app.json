@@ -18,7 +18,8 @@
           "launchMode": "most-recent"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,

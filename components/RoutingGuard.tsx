@@ -36,7 +36,7 @@ export function RoutingGuard({
         
         if (!hasUserProfile) {
           console.log('🍽️ User profile incomplete - redirecting to meal plan builder');
-          router.replace(redirectTo);
+          router.replace(redirectTo as any);
           return;
         }
       }
