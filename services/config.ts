@@ -45,7 +45,4 @@ export const getApiUrl = (): string => {
   return ENV[CURRENT_ENV];
 };
 
-// 🤖 Gemini API Key - IMPORTANT: Add your key here
-export const GEMINI_API_KEY = 'AIzaSyBT24xGmWuIueM2VbhXCz_DJVc8TL5cECo';
-
 export default API_CONFIG; 

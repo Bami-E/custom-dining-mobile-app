@@ -1,9 +1,32 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator, StyleSheet } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import ChatbotService, { ChatMessage, initialBotMessage } from '../services/chatbotService';
+import Markdown from 'react-native-markdown-display';
+
+// Styles for the markdown content
+const markdownStyles = StyleSheet.create({
+  body: {
+    color: 'black',
+    fontSize: 16,
+  },
+  strong: {
+    fontWeight: 'bold',
+  },
+  list_item: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  bullet_list_icon: {
+    marginLeft: 10,
+    marginRight: 10,
+    fontSize: 16,
+    color: colors.primary,
+  },
+});
 
 // Individual chat bubble component
 const ChatBubble = ({ message }: { message: ChatMessage }) => {
@@ -19,9 +42,15 @@ const ChatBubble = ({ message }: { message: ChatMessage }) => {
           maxWidth: '80%',
         }}
       >
-        <Text style={{ color: isUser ? 'white' : 'black', fontSize: 16 }}>
-          {message.parts[0].text}
-        </Text>
+        {isUser ? (
+          <Text style={{ color: 'white', fontSize: 16 }}>
+            {message.parts[0].text}
+          </Text>
+        ) : (
+          <Markdown style={markdownStyles}>
+            {message.parts[0].text}
+          </Markdown>
+        )}
       </View>
     </View>
   );
@@ -70,6 +99,9 @@ export default function FaqChatbotScreen() {
         options={{
           headerTitle: 'FAQ & Help',
           headerTitleAlign: 'center',
+          headerTransparent: false,
+          headerStyle: { backgroundColor: 'white' },
+          headerShadowVisible: false,
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={{ padding: 8 }}>
               <Ionicons name="arrow-back" size={24} color={colors.darkGray} />
